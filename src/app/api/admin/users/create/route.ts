@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'User created successfully',
       user: {
+        id: userRecord.uid,
         username: username,
         email: email,
         ...userData

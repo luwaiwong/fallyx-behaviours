@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Build outputs
+.next/
+out/
+build/
+
+# Development
+.env.local
+.env.development.local
+.env.test.local
+
+# Downloads and analyzed data
+python/*/downloads/
+python/*/analyzed/
+python/*/files/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+*.log
+coverage/
+
+# Git
+.git/
+.gitignore
+

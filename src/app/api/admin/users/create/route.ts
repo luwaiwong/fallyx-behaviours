@@ -42,26 +42,26 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'User created successfully',
       user: {
-        id: userRecord.uid,
-        username,
-        email,
-        role,
+        username: username,
+        email: email,
         ...userData
       }
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error creating user:', error);
     
     let errorMessage = 'Failed to create user';
-    if (error.code === 'auth/email-already-exists') {
-      errorMessage = 'A user with this username already exists';
-    } else if (error.code === 'auth/invalid-password') {
-      errorMessage = 'Password is too weak';
+    if (error && typeof error === 'object' && 'code' in error) {
+      if (error.code === 'auth/email-already-exists') {
+        errorMessage = 'A user with this username already exists';
+      } else if (error.code === 'auth/invalid-password') {
+        errorMessage = 'Password is too weak';
+      }
     }
 
     return NextResponse.json(
-      { error: errorMessage, details: error.message },
+      { error: errorMessage, details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

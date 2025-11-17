@@ -1,0 +1,14 @@
+firebase-admin
+pandas
+plotly
+beautifulsoup4
+selenium
+webdriver-manager
+pdfplumber
+openai
+schedule
+xlrd
+python-dotenv
+openpyxl
+PyPDF2
+pdfminer.six

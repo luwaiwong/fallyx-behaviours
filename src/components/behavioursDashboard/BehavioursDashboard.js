@@ -38,7 +38,7 @@ export default function BehavioursDashboard({ name, title, goal} ) {
         ? 'berkshire'
         : name === 'banwell'
           ? 'banwell'
-      : undefined;
+      : name;
   const months_forward = {
     '01': 'January',
     '02': 'February',

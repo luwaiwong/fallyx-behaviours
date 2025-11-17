@@ -9,7 +9,7 @@ import glob
 from homes_db import homes, homes_dict
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../../.env'))
 
 client = None
 

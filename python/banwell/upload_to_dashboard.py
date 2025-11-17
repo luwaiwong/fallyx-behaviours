@@ -7,7 +7,7 @@ from homes_db import homes_dict
 from dotenv import load_dotenv
 
 # Load environment variables
-load_dotenv()
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../../.env'))
 
 # Check if required environment variables are set
 required_vars = [

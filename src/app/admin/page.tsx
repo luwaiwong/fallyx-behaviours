@@ -7,9 +7,10 @@ import { ref, get } from 'firebase/database';
 import { db, auth } from '@/lib/firebase';
 import HomeManagement from '@/components/admin/HomeManagement';
 import UserManagement from '@/components/admin/UserManagement';
+import FileUpload from '@/components/admin/FileUpload';
 
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState<'homes' | 'users'>('homes');
+  const [activeTab, setActiveTab] = useState<'homes' | 'users' | 'upload'>('homes');
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
   const router = useRouter();
@@ -124,6 +125,16 @@ export default function AdminPage() {
             >
               User Management
             </button>
+            <button
+              onClick={() => setActiveTab('upload')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-all duration-300 ${
+                activeTab === 'upload'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-blue-600 hover:border-blue-300'
+              }`}
+            >
+              File Upload
+            </button>
           </div>
         </div>
       </nav>
@@ -132,6 +143,7 @@ export default function AdminPage() {
         <div className="px-4 sm:px-0">
           {activeTab === 'homes' && <HomeManagement />}
           {activeTab === 'users' && <UserManagement />}
+          {activeTab === 'upload' && <FileUpload />}
         </div>
       </main>
     </div>

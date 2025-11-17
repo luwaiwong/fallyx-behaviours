@@ -1,0 +1,26 @@
+# Core Dependencies
+firebase-admin
+pandas
+plotly
+python-dotenv
+
+# Web Scraping (if needed)
+beautifulsoup4
+selenium
+webdriver-manager
+
+# PDF Processing
+pdfplumber
+PyPDF2
+pdfminer.six
+
+# AI/ML
+openai
+
+# Excel Processing
+xlrd
+openpyxl
+
+# Task Scheduling
+schedule
+

@@ -1,45 +1,48 @@
 # Fallyx Behaviours Dashboard
 
-A Next.js application for tracking and analyzing behaviour incidents in care facilities.
+A Next.js application for tracking and analyzing behaviour incidents in care facilities, with automated file processing using Python and AI-powered injury detection.
 
 ## Features
 
 - **Behaviour Tracking**: Monitor and record behaviour incidents
+- **File Upload & Processing**: Automated processing of PDF behaviour notes and Excel incident reports
+- **AI-Powered Analysis**: OpenAI GPT-powered injury detection and classification
 - **Analysis Charts**: Visualize behaviour patterns by time of day, type, location, etc.
 - **Follow-up Management**: Track follow-up actions and notes
 - **API Routes**: Server-side Firebase operations for data fetching and updates
 - **Client-side Authentication**: Firebase authentication with role-based access
-- **Multiple Facilities**: Support for MCB, ONCB, Berkshire, and Banwell
+- **Multiple Facilities**: Support for MCB, ONCB, Berkshire, Banwell, and more
 
-## Setup
+## Quick Setup
+
+### Automated Setup (Recommended)
+
+```bash
+./setup.sh
+```
+
+This will install all Node.js and Python dependencies automatically.
+
+### Manual Setup
+
+See [SETUP.md](./SETUP.md) for detailed step-by-step instructions.
+
+## Quick Start
 
 ### 1. Install Dependencies
 
 ```bash
+# Node.js dependencies
 npm install
+
+# Python dependencies
+pip3 install -r requirements.txt
 ```
 
 ### 2. Configure Environment Variables
 
-Create a `.env.local` file in the root directory with the following variables:
+Create a `.env.local` and `.env` file in the root directory based off `.env.local.example` and `.env.example`
 
-```env
-# Firebase Client SDK Configuration (for frontend auth)
-NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_auth_domain
-NEXT_PUBLIC_FIREBASE_DATABASE_URL=your_database_url
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_storage_bucket
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
-NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=your_measurement_id
-
-# Firebase Admin SDK Configuration (for API routes)
-FIREBASE_ADMIN_PROJECT_ID=your_project_id
-FIREBASE_ADMIN_CLIENT_EMAIL=your_service_account_email
-FIREBASE_ADMIN_PRIVATE_KEY="your_private_key"
-FIREBASE_ADMIN_DATABASE_URL=your_database_url
-```
 
 ### 3. Run Development Server
 
@@ -59,34 +62,47 @@ npm start
 ## Project Structure
 
 ```
-behaviours/
-├── app/                      # Next.js app router pages
-│   ├── api/                 # API routes
-│   │   └── behaviours/      # Behaviour data endpoints
-│   ├── login/               # Login page
-│   ├── reset-password/      # Password reset page
-│   ├── unauthorized/        # Unauthorized access page
-│   ├── MCB/                 # Mill Creek dashboard
-│   ├── ONCB/                # O'Neill Centre dashboard
-│   ├── berkshire/           # Berkshire dashboard
-│   └── banwell/             # Banwell dashboard
-├── components/              # React components
-│   ├── behaviours/          # Behaviour-specific components
-│   ├── BehavioursDashboard.tsx  # Main dashboard component
-│   └── Modal.js             # Modal component
-├── lib/                     # Utility libraries
-│   ├── firebase.ts          # Firebase client SDK
-│   ├── firebase-admin.ts    # Firebase admin SDK
-│   └── DashboardUtils.ts    # Dashboard utility functions
-├── styles/                  # CSS modules
-│   ├── Behaviours.module.css
-│   ├── Login.css
-│   └── UpdatePasswordPage.module.css
-├── public/                  # Static assets
-│   └── assets/
-│       └── fallyxlogo.jpeg
-└── middleware.ts            # Next.js middleware for routing
-
+fallyx-behaviours/
+├── src/
+│   ├── app/                     # Next.js app router pages
+│   │   ├── api/                # API routes
+│   │   │   ├── admin/          # Admin endpoints
+│   │   │   │   └── process-behaviours/  # File processing endpoint
+│   │   │   └── behaviours/     # Behaviour data endpoints
+│   │   ├── upload/             # File upload page
+│   │   ├── login/              # Login page
+│   │   ├── admin/              # Admin dashboard
+│   │   ├── MCB/                # Mill Creek dashboard
+│   │   ├── ONCB/               # O'Neill Centre dashboard
+│   │   ├── berkshire/          # Berkshire dashboard
+│   │   └── banwell/            # Banwell dashboard
+│   ├── components/             # React components
+│   │   ├── admin/              # Admin components
+│   │   │   ├── FileUpload.tsx  # File upload component
+│   │   │   └── UserManagement.tsx
+│   │   ├── behavioursDashboard/  # Behaviour-specific components
+│   │   └── Modal.js            # Modal component
+│   ├── lib/                    # Utility libraries
+│   │   ├── firebase.ts         # Firebase client SDK
+│   │   ├── firebase-admin.ts   # Firebase admin SDK
+│   │   └── DashboardUtils.ts   # Dashboard utility functions
+│   └── styles/                 # CSS modules
+├── python/                     # Python processing scripts
+│   ├── banwell/
+│   ├── berkshire/
+│   ├── millcreek/
+│   └── oneill/
+│       ├── getPdfInfo.py       # Extract behaviour notes from PDFs
+│       ├── getExcelInfo.py     # Process incident reports
+│       ├── getBe.py            # Generate behaviour analysis
+│       ├── upload_to_dashboard.py  # Upload to Firebase
+│       ├── update.py           # Sync with Firebase
+│       └── downloads/          # Uploaded files stored here
+├── .env                        # Environment variables
+├── requirements.txt            # Python dependencies
+├── setup.sh                    # Automated setup script
+├── SETUP.md                    # Detailed setup guide
+└── package.json                # Node.js dependencies
 ```
 
 ## Authentication
@@ -110,15 +126,44 @@ Update behaviour records
 Fetch follow-up data for a specific facility
 - Query params: `month`, `year`
 
+## Usage
+
+### Upload & Process Behaviour Files
+
+1. Navigate to `/upload` or admin dashboard
+2. Select home from dropdown
+3. Upload files:
+   - **PDF**: Behaviour notes from PointClickCare
+   - **Excel**: Incident reports (.xls or .xlsx)
+4. Click "Process Files"
+5. AI processes and analyzes data automatically
+
+### View Dashboards
+
+- Navigate to specific home dashboards (e.g., `/MCB`, `/berkshire`)
+- View behaviour charts, incident summaries, and follow-ups
+- Filter by date, resident, type, etc.
+
 ## Technologies
 
+### Frontend
 - **Next.js 15**: React framework with app router
 - **TypeScript**: Type-safe development
-- **Firebase**: Authentication and Realtime Database
-- **Chart.js**: Data visualization
 - **Tailwind CSS**: Utility-first CSS framework
+- **Chart.js**: Data visualization
 - **jsPDF**: PDF generation
-- **Papa Parse**: CSV parsing
+
+### Backend
+- **Python 3.8+**: File processing and AI analysis
+- **OpenAI GPT-3.5**: AI-powered injury detection
+- **Firebase**: Authentication, Firestore, and Storage
+- **Node.js**: API routes and server-side rendering
+
+### Python Libraries
+- **pdfplumber**: PDF text extraction
+- **pandas**: Data manipulation
+- **openai**: AI analysis
+- **firebase-admin**: Firebase integration
 
 ## License
 

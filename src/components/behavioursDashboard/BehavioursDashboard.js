@@ -1156,59 +1156,46 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
       <div className={styles.mainHeader}>
         <div className={styles.headerLeft}>
           <h1 className={styles.dashboardTitle}>{title}</h1>
-          <div className={styles.navTabs}>
-            <button 
-              className={`${styles.navTab} ${!showFollowUpTable ? styles.navTabActive : ''}`}
-              onClick={() => setShowFollowUpTable(false)}
-            >
-              Behaviours Tracking
-            </button>
-            <button 
-              className={`${styles.navTab} ${showFollowUpTable ? styles.navTabActive : ''}`}
-              onClick={() => setShowFollowUpTable(true)}
-            >
-              Follow-ups
-            </button>
-          </div>
-        </div>
-        <div className={styles.headerRight}>
-          <div className={styles.userInfo}>
-            <span className={styles.welcomeText}>
-              Welcome, {auth.currentUser?.email || 'User'} ({title})
-            </span>
-          </div>
-          <button className={styles['logout-button']} onClick={handleLogout}>
-            Logout
-          </button>
         </div>
       </div>
 
       {/* Filters Section */}
       <div className={styles.filtersSection}>
-        <div className={styles.dateSelector}>
-          <button
-            onClick={() => setShowFollowUpTable(!showFollowUpTable)}
-            className={`${styles.toggleButton} ${showFollowUpTable ? styles.active : styles.inactive}`}
-            style={{height: '50px'}}
-          >
-            {showFollowUpTable ? 'Show Behaviours' : 'Show Follow-ups'}
-          </button>
+        <div className={styles.filtersRow}>
+          <div className={styles.dateSelector}>
+            <button
+              onClick={() => setShowFollowUpTable(!showFollowUpTable)}
+              className={`${styles.toggleButton} ${showFollowUpTable ? styles.active : styles.inactive}`}
+            >
+              {showFollowUpTable ? 'Show Behaviours' : 'Show Follow-ups'}
+            </button>
 
-          <select className={styles.selector} style={{height: '50px'}}onChange={handleYearChange} value={desiredYear}>
-            {Object.keys(availableYearMonth).map((year) => (
-              <option key={year} value={year}>
-                {year}
-              </option>
-            ))}
-          </select>
+            <select className={styles.selector} onChange={handleYearChange} value={desiredYear}>
+              {Object.keys(availableYearMonth).map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
 
-          <select className={styles.selector}  style={{height: '50px'}} onChange={handleMonthChange} value={desiredMonth}>
-            {(availableYearMonth[desiredYear] || []).map((month) => (
-              <option key={month} value={month}>
-                {month}
-              </option>
-            ))}
-          </select>
+            <select className={styles.selector} onChange={handleMonthChange} value={desiredMonth}>
+              {(availableYearMonth[desiredYear] || []).map((month) => (
+                <option key={month} value={month}>
+                  {month}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className={styles.headerRight}>
+            <div className={styles.userInfo}>
+              <span className={styles.welcomeText}>
+                Welcome, {auth.currentUser?.email || 'User'} ({title})
+              </span>
+            </div>
+            <button className={styles['logout-button']} onClick={handleLogout}>
+              Logout
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1405,8 +1392,7 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
       
       <div className={styles['table-header']}>
         <div className={styles['header']}>
-
-      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
         {!showFollowUpTable ? (
           <>
             {/* Behavior Tracking Filters */}
@@ -1483,9 +1469,9 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
             </button>
           </>
         )}
-      </div>
+          </div>
         </div>
-        <div>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           <button className={styles['download-button']} onClick={handleSaveCSV}>
             Download as CSV
           </button>

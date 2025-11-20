@@ -28,6 +28,7 @@ import BeTrackingTable from './subcomponents/BeTrackingTable.js';
 import FollowUpChart from './subcomponents/BeFollowUpChart.js';
 import BeFollowUpTable from './subcomponents/BeFollowUpTable.js';
 import BehavioursReports from './subcomponents/BehavioursReports.js';
+import TrendsAndAnalysis from './subcomponents/TrendsAndAnalysis.js';
 
 Chart.register(ArcElement, PointElement, LineElement);
 
@@ -115,10 +116,11 @@ export default function BehavioursDashboard({ name, title, goal} ) {
   const [isLoading, setIsLoading] = useState(true);
   const [threeMonthData, setThreeMonthData] = useState(new Map());
   const [followUpData, setFollowUpData] = useState([]);
-  const [activeSection, setActiveSection] = useState('overview'); // 'overview', 'reports'
+  const [activeSection, setActiveSection] = useState('overview'); // 'overview', 'reports', 'trends'
   const [activeOverviewTab, setActiveOverviewTab] = useState('behaviours'); // 'behaviours', 'followups'
   const [showFollowUpTable, setShowFollowUpTable] = useState(false);
   const [showReports, setShowReports] = useState(false);
+  const [showTrendsAndAnalysis, setShowTrendsAndAnalysis] = useState(false);
   const [followUpLoading, setFollowUpLoading] = useState(true);
   const getCurrentMonth = () => {
     const today = new Date();
@@ -1218,9 +1220,15 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
     if (activeSection === 'overview') {
       setShowFollowUpTable(activeOverviewTab === 'followups');
       setShowReports(false);
+      setShowTrendsAndAnalysis(false);
     } else if (activeSection === 'reports') {
       setShowFollowUpTable(false);
       setShowReports(true);
+      setShowTrendsAndAnalysis(false);
+    } else if (activeSection === 'trends') {
+      setShowFollowUpTable(false);
+      setShowReports(false);
+      setShowTrendsAndAnalysis(true);
     }
   }, [activeSection, activeOverviewTab]);
 
@@ -1297,6 +1305,24 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
                     <path d="M15 8V14H5V8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
                   </svg>
                   <span>Reports</span>
+                </div>
+              </button>
+            </div>
+
+            {/* Trends and Analysis Section */}
+            <div className={styles.navSection}>
+              <button
+                onClick={() => setActiveSection('trends')}
+                className={`${styles.navMainItem} ${activeSection === 'trends' ? styles.navMainItemActive : ''}`}
+              >
+                <div className={styles.navItemContent}>
+                  <svg className={styles.navIcon} width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M2 15L6 9L10 12L18 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                    <circle cx="6" cy="9" r="2" fill="currentColor"/>
+                    <circle cx="10" cy="12" r="2" fill="currentColor"/>
+                    <circle cx="18" cy="4" r="2" fill="currentColor"/>
+                  </svg>
+                  <span>Trends and Analysis</span>
                 </div>
               </button>
             </div>
@@ -1384,7 +1410,16 @@ const [filterTimeOfDay, setFilterTimeOfDay] = useState("Anytime");
             </div>
           </div>
 
-      {showReports ? (
+      {showTrendsAndAnalysis ? (
+        <TrendsAndAnalysis 
+          name={name}
+          altName={altName}
+          data={data}
+          getTimeOfDay={getTimeOfDay}
+          startDate={startDate}
+          endDate={endDate}
+        />
+      ) : showReports ? (
         <BehavioursReports 
           name={name}
           altName={altName}

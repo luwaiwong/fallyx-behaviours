@@ -109,3 +109,4 @@ def get_homes_for_chain(chain_id: str) -> list:
         return CHAINS[chain_id]['homes']
     return []
 
+

@@ -41,3 +41,4 @@ python3 run_script.py berkshire_care
 
 The old per-home structure (`python/berkshire/`, `python/millcreek/`, etc.) is being replaced by this chain-based structure. The extraction logic is shared within each chain, reducing code duplication.
 
+

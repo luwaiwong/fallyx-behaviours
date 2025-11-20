@@ -179,7 +179,7 @@ const s = {
         width: '100%',
         backgroundColor: '#fff',
         borderRadius: '8px',
-        overflow: 'hidden',
+        overflowX: 'auto',
         boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
         border: '1px solid #e5e7eb',
     },

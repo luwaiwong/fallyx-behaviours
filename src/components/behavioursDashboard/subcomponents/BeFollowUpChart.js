@@ -132,9 +132,6 @@ const FollowUpChart = ({data, desiredYear, desiredMonth}) => {
                 categoryPercentage: 1,
                 ticks: {
                     color: '#495057',
-                    font: {
-                        size: 11
-                    }
                 }
             },
             y: {
@@ -142,9 +139,6 @@ const FollowUpChart = ({data, desiredYear, desiredMonth}) => {
                 ticks: {
                     stepSize: 1,
                     color: '#495057',
-                    font: {
-                        size: 11
-                    }
                 },
                 grid: {
                     display: false,
@@ -164,11 +158,10 @@ const FollowUpChart = ({data, desiredYear, desiredMonth}) => {
             display: 'flex', 
             justifyContent: 'space-between', 
             flexDirection: 'column', 
-            flex: '1',
-            fontSize: '13px'
+            flex: '1'
         }}>
-          <div className={styles.topHeader} style={{ padding: '4px 2px' }}>
-            <h3 style={{ fontSize: '13px', margin: '4px 0' }}>{analysisHeaderText}</h3>
+          <div className={styles.topHeader} style={{ marginBottom: '12px' }}>
+            <h3 style={{ margin: 0 }}>{analysisHeaderText}</h3>
             <select
                 className={styles.selector}
                 id="followUpAnalysisType"
@@ -176,18 +169,13 @@ const FollowUpChart = ({data, desiredYear, desiredMonth}) => {
                 onChange={(e) => {
                     setAnalysisType(e.target.value);
                 }}
-                style={{ 
-                    fontSize: '11px', 
-                    padding: '4px 32px 4px 2px', // Ensure right padding for dropdown icon
-                    height: 'auto'
-                }}
             >
                 <option value="residents">By Resident</option>
                 <option value="monthly">By Month</option>
                 <option value="weekly">By Week</option>
             </select>
           </div>
-          <div style={{ flex: '1', height: '100%', minHeight: '180px' }}> 
+          <div style={{ flex: '1', height: '100%', minHeight: '200px' }}> 
             {analysisChartData.datasets.length > 0 && <Bar data={analysisChartData} options={analysisChartOptions} />}
           </div>
         </div>

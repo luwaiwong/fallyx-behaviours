@@ -30,27 +30,16 @@ ChartJS.register(
   Legend
 );
 
-export default function BehavioursReports({ name, altName, data, getTimeOfDay }) {
+export default function BehavioursReports({ name, altName, data, getTimeOfDay, startDate, endDate }) {
   const [selectedHome, setSelectedHome] = useState(name);
   const [selectedUnits, setSelectedUnits] = useState([]);
   const [selectedResidents, setSelectedResidents] = useState([]);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
   const [allReportsData, setAllReportsData] = useState({});
   const [loading, setLoading] = useState(false);
   const [availableUnits, setAvailableUnits] = useState([]);
   const [availableResidents, setAvailableResidents] = useState([]);
   const chartRefs = useRef({});
   const reportContentRef = useRef(null);
-
-  // Initialize dates to current month
-  useEffect(() => {
-    const today = new Date();
-    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-    setStartDate(firstDay.toISOString().split('T')[0]);
-    setEndDate(lastDay.toISOString().split('T')[0]);
-  }, []);
 
   // Extract available units and residents from data
   useEffect(() => {
@@ -618,27 +607,34 @@ export default function BehavioursReports({ name, altName, data, getTimeOfDay })
 
 
   return (
-    <div className={styles.dashboard} style={{ padding: '0' }}>
-      <div ref={reportContentRef}>
+    <div className={styles.dashboard} style={{ padding: '0', width: '100%', overflowX: 'hidden', height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div ref={reportContentRef} style={{ width: '100%', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
         {/* Header Section - Title on left, Filters on right */}
         <div style={{ 
           backgroundColor: '#fff', 
           borderBottom: '1px solid #e5e7eb',
-          padding: '20px 30px',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+          padding: '12px 30px',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+          width: '100%',
+          boxSizing: 'border-box',
+          position: 'sticky',
+          top: 0,
+          zIndex: 10,
+          flexShrink: 0
         }}>
           <div style={{ 
             display: 'flex', 
             justifyContent: 'space-between',
             alignItems: 'center',
-            gap: '20px',
+            gap: '16px',
             flexWrap: 'wrap',
-            width: '100%'
+            width: '100%',
+            maxWidth: '100%'
           }}>
             {/* Title on Left */}
-            <div style={{ marginLeft: '100px' }}>
+            <div>
               <h1 style={{ 
-                fontSize: '25px', 
+                fontSize: '22px', 
                 fontWeight: '700', 
                 color: '#111827',
                 margin: '0',
@@ -651,7 +647,7 @@ export default function BehavioursReports({ name, altName, data, getTimeOfDay })
             {/* Filters on Right */}
             <div style={{ 
               display: 'flex', 
-              gap: '12px', 
+              gap: '10px', 
               alignItems: 'center',
               flexWrap: 'wrap'
             }}>
@@ -660,7 +656,7 @@ export default function BehavioursReports({ name, altName, data, getTimeOfDay })
                 className={styles.selector}
                 value={selectedHome}
                 onChange={(e) => setSelectedHome(e.target.value)}
-                style={{ width: '140px', padding: '8px 32px 8px 12px' }}
+                style={{ width: '140px', padding: '6px 32px 6px 12px', height: '36px' }}
               >
                 <option value={name}>{name}</option>
               </select>
@@ -672,7 +668,7 @@ export default function BehavioursReports({ name, altName, data, getTimeOfDay })
                 onChange={(e) => {
                   setSelectedUnits(e.target.value ? [e.target.value] : []);
                 }}
-                style={{ width: '140px', padding: '8px 32px 8px 12px' }}
+                style={{ width: '140px', padding: '6px 32px 6px 12px', height: '36px' }}
               >
                 <option value="">All Units</option>
                 {availableUnits.map(unit => (
@@ -687,7 +683,7 @@ export default function BehavioursReports({ name, altName, data, getTimeOfDay })
                 onChange={(e) => {
                   setSelectedResidents(e.target.value ? [e.target.value] : []);
                 }}
-                style={{ width: '140px', padding: '8px 32px 8px 12px' }}
+                style={{ width: '140px', padding: '6px 32px 6px 12px', height: '36px' }}
               >
                 <option value="">All Residents</option>
                 {availableResidents.map(resident => (
@@ -698,7 +694,7 @@ export default function BehavioursReports({ name, altName, data, getTimeOfDay })
               {/* Divider Line */}
               <div style={{
                 width: '1px',
-                height: '30px',
+                height: '24px',
                 backgroundColor: '#d1d5db',
                 margin: '0 10px'
               }} />
@@ -709,14 +705,15 @@ export default function BehavioursReports({ name, altName, data, getTimeOfDay })
                 onClick={handleExportPDF}
                 disabled={Object.keys(allReportsData).length === 0 || loading}
                 style={{ 
-                  marginBottom: '10px',
-                  padding: '8px 16px',
+                  marginBottom: '0',
+                  padding: '6px 16px',
                   fontSize: '14px',
                   fontWeight: '500',
                   background: '#ffffff',
                   border: '2px solid #06b6d4',
                   color: '#06b6d4',
-                  outline: 'none'
+                  outline: 'none',
+                  height: '36px'
                 }}
               >
                 Export to PDF
@@ -726,7 +723,7 @@ export default function BehavioursReports({ name, altName, data, getTimeOfDay })
         </div>
 
         {/* Content Section */}
-        <div style={{ padding: '20px 30px', backgroundColor: '#f9fafb' }}>
+        <div style={{ padding: '20px 30px', backgroundColor: '#f9fafb', width: '100%', boxSizing: 'border-box', flex: 1 }}>
           {loading && (
             <div style={{ textAlign: 'center', padding: '40px' }}>
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
@@ -739,18 +736,16 @@ export default function BehavioursReports({ name, altName, data, getTimeOfDay })
               {allReportsData.timeOfDay && (
                 <div style={{ 
                   marginBottom: '30px',
-                  display: 'flex',
-                  justifyContent: 'center'
+                  width: '100%'
                 }}>
                   <div style={{ 
                     backgroundColor: '#fff',
                     padding: '24px 30px',
                     borderRadius: '12px',
                     boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-                    width: '100%',
-                    maxWidth: '1100px'
+                    width: '100%'
                   }}>
-                    {/* Header with Title and Date Range Picker */}
+                    {/* Header with Title */}
                     <div style={{ 
                       display: 'flex', 
                       justifyContent: 'space-between', 
@@ -765,94 +760,6 @@ export default function BehavioursReports({ name, altName, data, getTimeOfDay })
                       }}>
                         Statistics
                       </h2>
-                      
-                      {/* Date Range Picker */}
-                      <div 
-                        className={styles.selector}
-                        style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          gap: '8px',
-                          border: '1px solid #d1d5db',
-                          borderRadius: '8px',
-                          padding: '5px 8px',
-                          backgroundColor: '#fff',
-                          height: '36px',
-                          minWidth: '320px',
-                          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
-                          transition: 'all 0.2s ease-in-out',
-                          cursor: 'pointer'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderColor = '#d0d7de';
-                          e.currentTarget.style.backgroundColor = '#f1f3f4';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderColor = '#d1d5db';
-                          e.currentTarget.style.backgroundColor = '#fff';
-                        }}
-                      >
-                        <input
-                          type="date"
-                          value={startDate}
-                          onChange={(e) => {
-                            const newStartDate = e.target.value;
-                            setStartDate(newStartDate);
-                            // If end date is before new start date, update end date
-                            if (endDate && newStartDate > endDate) {
-                              setEndDate(newStartDate);
-                            }
-                          }}
-                          style={{ 
-                            border: 'none',
-                            outline: 'none',
-                            padding: '8px 32px 8px 10px',
-                            width: '150px',
-                            borderRadius: '8px 0 0 8px',
-                            fontSize: '14px',
-                            fontWeight: '500',
-                            color: '#212529',
-                            backgroundColor: 'transparent',
-                            height: '100%'
-                          }}
-                          title="Start Date"
-                        />
-                        <span style={{ 
-                          color: '#6b7280', 
-                          fontSize: '13px', 
-                          padding: '0 4px',
-                          flexShrink: 0,
-                          whiteSpace: 'nowrap'
-                        }}>
-                          to
-                        </span>
-                        <input
-                          type="date"
-                          value={endDate}
-                          onChange={(e) => {
-                            const newEndDate = e.target.value;
-                            setEndDate(newEndDate);
-                            // If start date is after new end date, update start date
-                            if (startDate && newEndDate < startDate) {
-                              setStartDate(newEndDate);
-                            }
-                          }}
-                          style={{ 
-                            border: 'none',
-                            outline: 'none',
-                            padding: '8px 32px 8px 10px',
-                            width: '150px',
-                            borderRadius: '0 8px 8px 0',
-                            fontSize: '14px',
-                            fontWeight: '500',
-                            color: '#212529',
-                            backgroundColor: 'transparent',
-                            height: '100%'
-                          }}
-                          title="End Date"
-                          min={startDate}
-                        />
-                      </div>
                     </div>
                     <p style={{ 
                       fontSize: '14px', 
@@ -1004,8 +911,7 @@ export default function BehavioursReports({ name, altName, data, getTimeOfDay })
                 return (
                   <div key={reportType} style={{ 
                     marginBottom: '30px',
-                    display: 'flex',
-                    justifyContent: 'center'
+                    width: '100%'
                   }}>
                     {/* Main Island Card */}
                     <div style={{
@@ -1013,8 +919,7 @@ export default function BehavioursReports({ name, altName, data, getTimeOfDay })
                       borderRadius: '12px',
                       padding: '24px 30px',
                       boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-                      width: '100%',
-                      maxWidth: '1100px'
+                      width: '100%'
                     }}>
                       {/* Report Title */}
                       <h2 style={{ 

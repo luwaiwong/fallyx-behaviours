@@ -22,6 +22,7 @@ export default function HomeManagement() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newHomeName, setNewHomeName] = useState('');
   const [selectedChainId, setSelectedChainId] = useState('');
+  const [pythonDir, setPythonDir] = useState('');
   const [creating, setCreating] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [migrating, setMigrating] = useState(false);
@@ -139,15 +140,20 @@ export default function HomeManagement() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ homeName: newHomeName, chainId: selectedChainId }),
+        body: JSON.stringify({ 
+          homeName: newHomeName, 
+          chainId: selectedChainId,
+          pythonDir: pythonDir.trim() || undefined // Only send if provided
+        }),
       });
 
       const data = await response.json();
 
       if (response.ok && data.success) {
-        setSuccessMessage(`Home "${data.displayName}" created successfully!`);
+        setSuccessMessage(`Home "${data.displayName}" created successfully! Python directory: ${data.mapping?.pythonDir || 'auto-generated'}`);
         setNewHomeName('');
         setSelectedChainId('');
+        setPythonDir('');
         setShowCreateForm(false);
         fetchHomes();
         fetchChains();
@@ -276,6 +282,25 @@ export default function HomeManagement() {
               </p>
             </div>
             <div>
+              <label htmlFor="pythonDir" className="block text-sm font-medium text-gray-700 mb-2">
+                Python Directory Name <span className="text-gray-400 font-normal">(Optional)</span>
+              </label>
+              <input
+                type="text"
+                id="pythonDir"
+                value={pythonDir}
+                onChange={(e) => setPythonDir(e.target.value)}
+                placeholder="e.g., millcreek (auto-generated if left blank)"
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                disabled={creating}
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Directory name in the python/ folder. If left blank, will auto-generate from home name (lowercase, no spaces/underscores).
+                <br />
+                <span className="font-medium">Example:</span> "Mill Creek Care" → "millcreek" (auto) or specify custom like "millcreekcare"
+              </p>
+            </div>
+            <div>
               <label htmlFor="chainId" className="block text-sm font-medium text-gray-700 mb-2">
                 Chain
               </label>
@@ -305,6 +330,7 @@ export default function HomeManagement() {
                   setShowCreateForm(false);
                   setNewHomeName('');
                   setSelectedChainId('');
+                  setPythonDir('');
                   setError('');
                 }}
                 className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"

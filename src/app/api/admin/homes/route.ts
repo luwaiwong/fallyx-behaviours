@@ -45,10 +45,27 @@ export async function GET() {
   }
 }
 
+// Helper function to convert display name to camelCase for Firebase ID
+function toCamelCase(str: string): string {
+  return str
+    .replace(/\s+(.)/g, (_, c) => c.toUpperCase())
+    .replace(/\s+/g, '')
+    .replace(/^(.)/, (_, c) => c.toLowerCase());
+}
+
+// Helper function to generate Python directory name (lowercase, no spaces/underscores)
+function generatePythonDir(homeName: string, pythonDirOverride?: string): string {
+  if (pythonDirOverride) {
+    return pythonDirOverride.trim().toLowerCase().replace(/\s+/g, '').replace(/_/g, '');
+  }
+  // Auto-generate: lowercase, remove spaces and underscores
+  return homeName.trim().toLowerCase().replace(/\s+/g, '').replace(/_/g, '');
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { homeName, chainId } = body;
+    const { homeName, chainId, pythonDir } = body;
 
     if (!homeName || typeof homeName !== 'string') {
       return NextResponse.json(
@@ -65,6 +82,9 @@ export async function POST(request: NextRequest) {
     }
 
     const sanitizedName = homeName.trim().toLowerCase().replace(/\s+/g, '_');
+    const displayName = homeName.trim();
+    const firebaseId = toCamelCase(displayName);
+    const pythonDirName = generatePythonDir(sanitizedName, pythonDir);
 
     // Check if home already exists
     const homeRef = adminDb.ref(`/${sanitizedName}`);
@@ -88,14 +108,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create Firebase structure
+    // Create Firebase structure with mappings
     await homeRef.set({
       behaviours: {
         createdAt: new Date().toISOString()
       },
       chainId: chainId,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      // Store mapping information
+      mapping: {
+        firebaseId: firebaseId,
+        pythonDir: pythonDirName,
+        homeName: sanitizedName,
+        displayName: displayName
+      }
     });
+
+    // Store mapping in a centralized location for easy lookup
+    const mappingsRef = adminDb.ref('/homeMappings');
+    const mappingsSnapshot = await mappingsRef.once('value');
+    const existingMappings = mappingsSnapshot.exists() ? mappingsSnapshot.val() : {};
+    
+    // Add multiple entry points for the same home
+    const newMappings = {
+      ...existingMappings,
+      [sanitizedName]: {
+        firebaseId: firebaseId,
+        pythonDir: pythonDirName,
+        homeName: sanitizedName,
+        displayName: displayName
+      },
+      [firebaseId]: {
+        firebaseId: firebaseId,
+        pythonDir: pythonDirName,
+        homeName: sanitizedName,
+        displayName: displayName
+      }
+    };
+    
+    await mappingsRef.set(newMappings);
 
     // Add home to chain's homes list
     const chainData = chainSnapshot.val();
@@ -105,14 +156,21 @@ export async function POST(request: NextRequest) {
       await chainRef.update({ homes });
     }
 
-    console.log(`✅ Created home: ${homeName} (${sanitizedName}) in chain ${chainId}`);
+    console.log(`✅ Created home: ${displayName} (${sanitizedName}) in chain ${chainId}`);
+    console.log(`📋 Mapping: firebaseId=${firebaseId}, pythonDir=${pythonDirName}`);
 
     return NextResponse.json({
       success: true,
       message: 'Home created successfully',
       homeName: sanitizedName,
-      displayName: homeName,
-      chainId: chainId
+      displayName: displayName,
+      chainId: chainId,
+      mapping: {
+        firebaseId: firebaseId,
+        pythonDir: pythonDirName,
+        homeName: sanitizedName,
+        displayName: displayName
+      }
     });
 
   } catch (error) {

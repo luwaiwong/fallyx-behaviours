@@ -1,20 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
+import { writeFile, mkdir, stat, readdir } from 'fs/promises';
 import { join } from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { adminDb } from '@/lib/firebase-admin';
+import { getFirebaseIdAsync, getPythonDirNameAsync, getHomeNameAsync, validateHomeMappingAsync } from '@/lib/homeMappings';
 
 const execAsync = promisify(exec);
 
-// Map home name to altName (same logic as BehavioursDashboard)
-function getAltName(home: string): string {
-  if (home === 'ONCB') return 'oneill';
-  if (home === 'MCB') return 'millCreek';
-  if (home === 'berkshire') return 'berkshire';
-  if (home === 'banwell') return 'banwell';
-  return home;
-}
+// Note: getAltName is no longer needed - we use getFirebaseIdAsync directly
 
 export async function POST(request: NextRequest) {
   console.log('🚀 [API] Starting behaviour files processing...');
@@ -45,6 +39,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Home is required' }, { status: 400 });
     }
 
+    // Validate home mapping exists (check Firebase)
+    const validation = await validateHomeMappingAsync(home);
+    if (!validation.valid) {
+      console.error(`❌ [API] Invalid home mapping for: ${home}`, validation.missing);
+      return NextResponse.json({ 
+        error: `Home mapping not configured properly. Missing: ${validation.missing?.join(', ')}. Please ensure the home was created through the admin UI.` 
+      }, { status: 400 });
+    }
+
     // If no files, we can still save metrics
     const hasFiles = pdfCount > 0 && excelCount > 0;
     const hasMetrics = !!(antipsychoticsPercentage || worsenedPercentage || improvedPercentage);
@@ -60,7 +63,7 @@ export async function POST(request: NextRequest) {
 
     // Save metrics to Firebase if provided (if not provided, existing values are preserved)
     if (hasMetrics) {
-      const altName = getAltName(home);
+      const altName = await getFirebaseIdAsync(home);
       const metricsRef = adminDb.ref(`/${altName}/overviewMetrics`);
       
       const metricsData: any = {};
@@ -130,8 +133,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const homeDir = join(process.cwd(), 'python', home);
+    const pythonDirName = await getPythonDirNameAsync(home);
+    const homeNameForPython = await getHomeNameAsync(home);
+    const homeDir = join(process.cwd(), 'python', pythonDirName);
     const downloadsDir = join(homeDir, 'downloads');
+    
+    console.log(`🏠 [API] Home mapping - UI: ${home}, Python Dir: ${pythonDirName}, Home Name: ${homeNameForPython}`);
 
     console.log(`🏠 [API] Creating directories for home: ${home}`);
     await mkdir(downloadsDir, { recursive: true });
@@ -164,65 +171,177 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('🐍 [PYTHON] Step 1: Processing Excel data...');
+    const excelStartTime = Date.now();
     try {
-      const excelResult = await execAsync(`cd "${homeDir}" && python3 getExcelInfo.py`);
-      console.log('✅ [PYTHON] Excel processing completed');
+      // Check for Excel files before processing
+      try {
+        const excelFiles = await readdir(downloadsDir);
+        const xlsFiles = excelFiles.filter(f => f.endsWith('.xls') || f.endsWith('.xlsx'));
+        console.log(`📋 [PYTHON] Found ${xlsFiles.length} Excel file(s) to process:`, xlsFiles);
+        for (const file of xlsFiles) {
+          try {
+            const filePath = join(downloadsDir, file);
+            const stats = await stat(filePath);
+            const fileSizeMB = (stats.size / (1024 * 1024)).toFixed(2);
+            console.log(`   📄 ${file} (${fileSizeMB} MB)`);
+          } catch (err) {
+            console.log(`   ⚠️ Could not get stats for ${file}`);
+          }
+        }
+      } catch (err) {
+        console.log('⚠️ [PYTHON] Could not list Excel files:', err);
+      }
+
+      console.log(`🔧 [PYTHON] Executing: cd "${homeDir}" && HOME_NAME="${homeNameForPython}" python3 getExcelInfo.py`);
+      console.log(`📁 [PYTHON] Working directory: ${homeDir}`);
+      console.log(`🏠 [PYTHON] Home name: ${homeNameForPython}`);
+      
+      const excelResult = await execAsync(`cd "${homeDir}" && HOME_NAME="${homeNameForPython}" python3 getExcelInfo.py`);
+      const excelDuration = ((Date.now() - excelStartTime) / 1000).toFixed(2);
+      console.log(`✅ [PYTHON] Excel processing completed in ${excelDuration}s`);
       console.log('📊 [PYTHON] Excel output:', excelResult.stdout);
       if (excelResult.stderr) {
         console.log('⚠️ [PYTHON] Excel warnings:', excelResult.stderr);
       }
     } catch (error) {
-      console.error('❌ [PYTHON] Excel processing failed:', error);
+      const excelDuration = ((Date.now() - excelStartTime) / 1000).toFixed(2);
+      console.error(`❌ [PYTHON] Excel processing failed after ${excelDuration}s:`, error);
+      if (error instanceof Error) {
+        console.error('❌ [PYTHON] Error details:', {
+          message: error.message,
+          stack: error.stack
+        });
+      }
       throw error;
     }
 
     console.log('🐍 [PYTHON] Step 2: Processing PDF data...');
+    const pdfStartTime = Date.now();
     try {
-      const pdfResult = await execAsync(`cd "${homeDir}" && python3 getPdfInfo.py`);
-      console.log('✅ [PYTHON] PDF processing completed');
-      console.log('📊 [PYTHON] PDF output:', pdfResult.stdout);
+      // Check for PDF files before processing
+      try {
+        const pdfFiles = await readdir(downloadsDir);
+        const pdfFileList = pdfFiles.filter(f => f.endsWith('.pdf'));
+        console.log(`📋 [PYTHON] Found ${pdfFileList.length} PDF file(s) to process:`, pdfFileList);
+        let totalSizeMB = 0;
+        for (const file of pdfFileList) {
+          try {
+            const filePath = join(downloadsDir, file);
+            const stats = await stat(filePath);
+            const fileSizeMB = stats.size / (1024 * 1024);
+            totalSizeMB += fileSizeMB;
+            console.log(`   📄 ${file} (${fileSizeMB.toFixed(2)} MB)`);
+          } catch (err) {
+            console.log(`   ⚠️ Could not get stats for ${file}`);
+          }
+        }
+        console.log(`📊 [PYTHON] Total PDF size: ${totalSizeMB.toFixed(2)} MB`);
+        console.log(`⏱️ [PYTHON] PDF processing can take 1-5 minutes per MB depending on content complexity...`);
+      } catch (err) {
+        console.log('⚠️ [PYTHON] Could not list PDF files:', err);
+      }
+
+      console.log(`🔧 [PYTHON] Executing: cd "${homeDir}" && HOME_NAME="${homeNameForPython}" python3 getPdfInfo.py`);
+      console.log(`📁 [PYTHON] Working directory: ${homeDir}`);
+      console.log(`🏠 [PYTHON] Home name: ${homeNameForPython}`);
+      console.log(`⏳ [PYTHON] Starting PDF processing at ${new Date().toISOString()}...`);
+      console.log(`💡 [PYTHON] This step involves text extraction and AI processing, which can take several minutes...`);
+      
+      const pdfResult = await execAsync(`cd "${homeDir}" && HOME_NAME="${homeNameForPython}" python3 getPdfInfo.py`);
+      const pdfDuration = ((Date.now() - pdfStartTime) / 1000).toFixed(2);
+      const pdfDurationMinutes = (parseFloat(pdfDuration) / 60).toFixed(2);
+      console.log(`✅ [PYTHON] PDF processing completed in ${pdfDuration}s (${pdfDurationMinutes} minutes)`);
+      console.log(`📊 [PYTHON] PDF output (first 1000 chars):`, pdfResult.stdout.substring(0, 1000));
+      if (pdfResult.stdout.length > 1000) {
+        console.log(`📊 [PYTHON] ... (output truncated, total length: ${pdfResult.stdout.length} chars)`);
+      }
       if (pdfResult.stderr) {
-        console.log('⚠️ [PYTHON] PDF warnings:', pdfResult.stderr);
+        console.log('⚠️ [PYTHON] PDF warnings/stderr:', pdfResult.stderr);
       }
     } catch (error) {
-      console.error('❌ [PYTHON] PDF processing failed:', error);
+      const pdfDuration = ((Date.now() - pdfStartTime) / 1000).toFixed(2);
+      const pdfDurationMinutes = (parseFloat(pdfDuration) / 60).toFixed(2);
+      console.error(`❌ [PYTHON] PDF processing failed after ${pdfDuration}s (${pdfDurationMinutes} minutes)`);
+      if (error instanceof Error) {
+        console.error('❌ [PYTHON] Error details:', {
+          message: error.message,
+          stack: error.stack
+        });
+        // Check if it's a timeout or process issue
+        if (error.message.includes('killed') || error.message.includes('SIGTERM')) {
+          console.error('❌ [PYTHON] Process was killed - possible timeout or resource issue');
+        }
+        if (error.message.includes('ENOENT')) {
+          console.error('❌ [PYTHON] File or directory not found - check Python script path');
+        }
+      }
       throw error;
     }
 
     console.log('🐍 [PYTHON] Step 3: Generating behaviour data...');
+    const behaviourStartTime = Date.now();
     try {
-      const behaviourResult = await execAsync(`cd "${homeDir}" && python3 getBe.py`);
-      console.log('✅ [PYTHON] Behaviour data generation completed');
+      console.log(`🔧 [PYTHON] Executing: cd "${homeDir}" && HOME_NAME="${homeNameForPython}" python3 getBe.py`);
+      const behaviourResult = await execAsync(`cd "${homeDir}" && HOME_NAME="${homeNameForPython}" python3 getBe.py`);
+      const behaviourDuration = ((Date.now() - behaviourStartTime) / 1000).toFixed(2);
+      console.log(`✅ [PYTHON] Behaviour data generation completed in ${behaviourDuration}s`);
       console.log('📊 [PYTHON] Behaviour output:', behaviourResult.stdout);
       if (behaviourResult.stderr) {
         console.log('⚠️ [PYTHON] Behaviour warnings:', behaviourResult.stderr);
       }
     } catch (error) {
-      console.error('❌ [PYTHON] Behaviour data generation failed:', error);
+      const behaviourDuration = ((Date.now() - behaviourStartTime) / 1000).toFixed(2);
+      console.error(`❌ [PYTHON] Behaviour data generation failed after ${behaviourDuration}s:`, error);
+      if (error instanceof Error) {
+        console.error('❌ [PYTHON] Error details:', {
+          message: error.message,
+          stack: error.stack
+        });
+      }
       throw error;
     }
     console.log('🐍 [PYTHON] Step 4: Updating dashboard...');
+    const updateStartTime = Date.now();
     try {
+      console.log(`🔧 [PYTHON] Executing: cd "${homeDir}" && python3 update.py`);
       const dashboardResult = await execAsync(`cd "${homeDir}" && python3 update.py`);
-      console.log('✅ [PYTHON] Dashboard updated successfully');
+      const updateDuration = ((Date.now() - updateStartTime) / 1000).toFixed(2);
+      console.log(`✅ [PYTHON] Dashboard updated successfully in ${updateDuration}s`);
       console.log('📊 [PYTHON] Dashboard output:', dashboardResult.stdout);
       if (dashboardResult.stderr) {
         console.log('⚠️ [PYTHON] Dashboard warnings:', dashboardResult.stderr);
       }
     } catch (error) {
-      console.error('❌ [PYTHON] Dashboard update failed:', error);
+      const updateDuration = ((Date.now() - updateStartTime) / 1000).toFixed(2);
+      console.error(`❌ [PYTHON] Dashboard update failed after ${updateDuration}s:`, error);
+      if (error instanceof Error) {
+        console.error('❌ [PYTHON] Error details:', {
+          message: error.message,
+          stack: error.stack
+        });
+      }
       throw error;
     }
     console.log('🐍 [PYTHON] Step 5: Uploading to dashboard...');
+    const uploadStartTime = Date.now();
     try {
+      console.log(`🔧 [PYTHON] Executing: cd "${homeDir}" && python3 upload_to_dashboard.py`);
       const uploadResult = await execAsync(`cd "${homeDir}" && python3 upload_to_dashboard.py`);
-      console.log('✅ [PYTHON] Dashboard uploaded successfully');
+      const uploadDuration = ((Date.now() - uploadStartTime) / 1000).toFixed(2);
+      console.log(`✅ [PYTHON] Dashboard uploaded successfully in ${uploadDuration}s`);
       console.log('📊 [PYTHON] Dashboard output:', uploadResult.stdout);
       if (uploadResult.stderr) {
         console.log('⚠️ [PYTHON] Dashboard warnings:', uploadResult.stderr);
       }
     } catch (error) {
-      console.error('❌ [PYTHON] Dashboard upload failed:', error);
+      const uploadDuration = ((Date.now() - uploadStartTime) / 1000).toFixed(2);
+      console.error(`❌ [PYTHON] Dashboard upload failed after ${uploadDuration}s:`, error);
+      if (error instanceof Error) {
+        console.error('❌ [PYTHON] Error details:', {
+          message: error.message,
+          stack: error.stack
+        });
+      }
       throw error;
     }
 

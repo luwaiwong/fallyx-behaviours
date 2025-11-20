@@ -902,19 +902,42 @@ def add_previous_day_injuries(csv_file="behaviour_incidents.csv"):
         logging.error(f"Error adding previous day's exact injuries: {str(e)}")
         print(f"Error adding previous day's exact injuries: {str(e)}")
 
-def extract_info_from_filename(filename):
-    match = re.search(r'(?P<dashboard>[\w_]+)_(?P<month>\d{2})-(?P<day>\d{2})-(?P<year>\d{4})', filename)
+def extract_date_from_filename(filename):
+    """
+    Extract date from filename. Expected format: MM-DD-YYYY (e.g., 11-18-2025)
+    Returns: (year, month, day) or (None, None, None) if not found
+    """
+    # Try format: MM-DD-YYYY (can be anywhere in filename)
+    match = re.search(r'(?P<month>\d{2})-(?P<day>\d{2})-(?P<year>\d{4})', filename)
     if match:
-        dashboard = homes_dict.get(match.group('dashboard'), 'unknown')  
         year = match.group('year')
         month = match.group('month')
         day = match.group('day')
-        return dashboard, year, month, day
-    return None, None, None, None
+        return year, month, day
+    return None, None, None
 
-def main(api_key: str):
+def main(api_key: str, home_name: str = None):
+    """
+    Process PDF files and extract behaviour data.
+    
+    Args:
+        api_key: OpenAI API key
+        home_name: Home name to use (from UI selection). If not provided, tries to get from environment variable.
+    """
     global client
     client = openai.OpenAI(api_key=api_key)
+
+    # Get home name from parameter, environment variable, or use default
+    if not home_name:
+        home_name = os.getenv('HOME_NAME')
+    
+    if not home_name:
+        # Fallback: try to get from homes list (for backwards compatibility)
+        # But this should rarely happen now since we pass it from API
+        logging.warning("No home name provided. Using first home in list as fallback.")
+        home_name = homes[0] if homes else "unknown"
+    
+    logging.info(f"Processing files for home: {home_name}")
 
     pdf_files = glob.glob("downloads/*.pdf")
 
@@ -927,11 +950,10 @@ def main(api_key: str):
     if not os.path.exists(analyzed_dir):
         os.makedirs(analyzed_dir)
 
-    # Create subdirectories for each home
-    for home in homes:
-        home_dir = os.path.join(analyzed_dir, home.replace(" ", "_").replace("-", "_").lower())
-        if not os.path.exists(home_dir):
-            os.makedirs(home_dir)
+    # Create directory for this specific home
+    home_dir = os.path.join(analyzed_dir, home_name.replace(" ", "_").replace("-", "_").lower())
+    if not os.path.exists(home_dir):
+        os.makedirs(home_dir)
 
     for pdf_path in pdf_files:
         logging.info(f"Starting PDF parsing process for: {pdf_path}")
@@ -943,38 +965,37 @@ def main(api_key: str):
         
         entries = getAllFallNotesInfo(pagesText)
         
-        # Determine the home name from the PDF file name
-        home_name = next((home for home in homes if home.lower().replace(" ", "_") in pdf_path.lower()), None)
-
-        if home_name:
-            home_dir = os.path.join(analyzed_dir, home_name.replace(" ", "_").replace("-", "_").lower())
+        # Extract date information from the filename (format: MM-DD-YYYY)
+        year, month, day = extract_date_from_filename(os.path.basename(pdf_path))
+        if year and month and day:
+            date_dir = os.path.join(home_dir, f"{year}_{month}_{day}")
+            if not os.path.exists(date_dir):
+                os.makedirs(date_dir)
             
-            # Extract date information from the filename
-            _, year, month, day = extract_info_from_filename(os.path.basename(pdf_path))
-            if year and month and day:
-                date_dir = os.path.join(home_dir, f"{year}_{month}_{day}")
-                if not os.path.exists(date_dir):
-                    os.makedirs(date_dir)
-                
-                # Save the CSV in the date-specific subdirectory
-                output_csv = os.path.join(date_dir, f"{os.path.splitext(os.path.basename(pdf_path))[0]}_behaviour_incidents.csv")
-                save_to_csv(entries, output_csv)
-                csvLook(output_csv)
-                csvRemoveHeader(output_csv)
-                add_previous_day_injuries(output_csv)
-                add_injuries_column(output_csv)
-                clean_injury_list(output_csv)
-                add_head_injury_column(output_csv)
-                searchFalls(output_csv)
-            else:
-                logging.error(f"Date information not found in PDF file: {pdf_path}")
+            # Save the CSV in the date-specific subdirectory
+            output_csv = os.path.join(date_dir, f"{os.path.splitext(os.path.basename(pdf_path))[0]}_behaviour_incidents.csv")
+            save_to_csv(entries, output_csv)
+            csvLook(output_csv)
+            csvRemoveHeader(output_csv)
+            add_previous_day_injuries(output_csv)
+            add_injuries_column(output_csv)
+            clean_injury_list(output_csv)
+            add_head_injury_column(output_csv)
+            searchFalls(output_csv)
         else:
-            logging.error(f"Home name not found in PDF file: {pdf_path}")
+            logging.error(f"Date information not found in PDF file: {pdf_path}. Expected format: MM-DD-YYYY")
     
     logging.info("Process completed")
 
 if __name__ == "__main__":
+    import sys
     openai_api_key = os.getenv("OPENAI_API_KEY")
     if not openai_api_key:
         raise ValueError("OPENAI_API_KEY not found in .env file")
-    main(openai_api_key)
+    
+    # Get home name from command line argument or environment variable
+    home_name = None
+    if len(sys.argv) > 1:
+        home_name = sys.argv[1]
+    
+    main(openai_api_key, home_name)

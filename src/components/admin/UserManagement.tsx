@@ -536,6 +536,7 @@ export default function UserManagement() {
                 setShowForm(false);
                 setFormData({
                   username: '',
+                  email: '',
                   password: '',
                   role: 'homeUser',
                   chainId: '',

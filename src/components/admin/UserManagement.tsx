@@ -38,9 +38,7 @@ export default function UserManagement() {
     role: 'homeUser',
     chainId: '',
     homeId: '',
-    createNewChain: false,
     createNewHome: false,
-    newChainName: '',
     newHomeName: ''
   });
   const [message, setMessage] = useState('');
@@ -127,35 +125,22 @@ export default function UserManagement() {
 
       // Validate homeUser requirements
       if (formData.role === 'homeUser') {
-        if (formData.createNewChain) {
-          if (!formData.newChainName.trim()) {
-            showMessage('Chain name is required when creating a new chain', 'error');
-            setIsSubmitting(false);
-            return;
-          }
+        if (!formData.chainId) {
+          showMessage('Please select a chain', 'error');
+          setIsSubmitting(false);
+          return;
+        }
+        if (formData.createNewHome) {
           if (!formData.newHomeName.trim()) {
-            showMessage('Home name is required when creating a new chain', 'error');
+            showMessage('Home name is required when creating a new home', 'error');
             setIsSubmitting(false);
             return;
           }
         } else {
-          if (!formData.chainId) {
-            showMessage('Please select or create a chain', 'error');
+          if (!formData.homeId) {
+            showMessage('Please select or create a home', 'error');
             setIsSubmitting(false);
             return;
-          }
-          if (formData.createNewHome) {
-            if (!formData.newHomeName.trim()) {
-              showMessage('Home name is required when creating a new home', 'error');
-              setIsSubmitting(false);
-              return;
-            }
-          } else {
-            if (!formData.homeId) {
-              showMessage('Please select or create a home', 'error');
-              setIsSubmitting(false);
-              return;
-            }
           }
         }
       }
@@ -178,9 +163,7 @@ export default function UserManagement() {
           role: 'homeUser',
           chainId: '',
           homeId: '',
-          createNewChain: false,
           createNewHome: false,
-          newChainName: '',
           newHomeName: ''
         });
         setShowForm(false);
@@ -407,56 +390,16 @@ export default function UserManagement() {
           {formData.role === 'homeUser' && (
             <>
               <div className="border-t border-gray-200 pt-4">
-                <div className="flex items-center justify-between mb-2">
+                <div>
                   <div className="flex items-center">
                     <label className="block text-sm font-medium text-gray-700">
                       Chain
                     </label>
                     <HelpIcon 
                       title="Chain"
-                      content="Select an existing chain or create a new one. Chains group related care facilities together. If creating a new chain, you must also create a home for that chain."
+                      content="Select an existing chain. Chains group related care facilities together. To create a new chain, use the Home Management section."
                     />
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <button
-                      type="button"
-                      onClick={() => setFormData({
-                        ...formData,
-                        createNewChain: false,
-                        chainId: '',
-                        homeId: '',
-                        createNewHome: false
-                      })}
-                      className={`text-xs px-2 py-1 rounded-md ${!formData.createNewChain ? 'bg-blue-500 text-white' : 'bg-gray-200 text-black'}`}
-                    >
-                      Select Existing
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFormData({
-                        ...formData,
-                        createNewChain: true,
-                        chainId: '',
-                        homeId: '',
-                        createNewHome: true
-                      })}
-                      className={`text-xs px-2 py-1 rounded-md ${formData.createNewChain ? 'bg-blue-500 text-white' : 'bg-gray-200 text-black'}`}
-                    >
-                      Create New
-                    </button>
-                  </div>
-                </div>
-
-                {formData.createNewChain ? (
-                  <input
-                    type="text"
-                    value={formData.newChainName}
-                    onChange={(e) => setFormData({ ...formData, newChainName: e.target.value })}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter new chain name (e.g., Responsive, Kindera)"
-                    required={formData.createNewChain}
-                  />
-                ) : (
                   <select
                     value={formData.chainId}
                     onChange={(e) => setFormData({
@@ -466,7 +409,7 @@ export default function UserManagement() {
                       createNewHome: false
                     })}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    required={!formData.createNewChain}
+                    required
                   >
                     <option value="">Select a chain</option>
                     {chains.map((chain) => (
@@ -475,10 +418,10 @@ export default function UserManagement() {
                       </option>
                     ))}
                   </select>
-                )}
+                </div>
               </div>
 
-              {!formData.createNewChain && formData.chainId && (
+              {formData.chainId && (
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center">
@@ -543,24 +486,6 @@ export default function UserManagement() {
                 </div>
               )}
 
-              {formData.createNewChain && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Home Name (required for new chain)
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.newHomeName}
-                    onChange={(e) => setFormData({ ...formData, newHomeName: e.target.value })}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter new home name (e.g., Berkshire Care, Mill Creek Care)"
-                    required={formData.createNewChain}
-                  />
-                  <p className="mt-1 text-xs text-gray-500">
-                    A new home will be created automatically for the new chain
-                  </p>
-                </div>
-              )}
             </>
           )}
 
@@ -575,9 +500,7 @@ export default function UserManagement() {
                   role: 'homeUser',
                   chainId: '',
                   homeId: '',
-                  createNewChain: false,
                   createNewHome: false,
-                  newChainName: '',
                   newHomeName: ''
                 });
               }}

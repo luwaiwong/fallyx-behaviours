@@ -37,13 +37,39 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { chainName } = body;
+    const { chainName, extractionType, extractionConfig } = body;
 
     if (!chainName || typeof chainName !== 'string') {
       return NextResponse.json(
         { error: 'Chain name is required' },
         { status: 400 }
       );
+    }
+
+    if (!extractionType || typeof extractionType !== 'string') {
+      return NextResponse.json(
+        { error: 'Extraction type is required. Choose one of: kindera, responsive, test, custom' },
+        { status: 400 }
+      );
+    }
+
+    // Validate extraction type
+    const validExtractionTypes = ['kindera', 'responsive', 'test', 'custom'];
+    if (!validExtractionTypes.includes(extractionType)) {
+      return NextResponse.json(
+        { error: `Invalid extraction type. Must be one of: ${validExtractionTypes.join(', ')}` },
+        { status: 400 }
+      );
+    }
+
+    // If custom, require extractionConfig
+    if (extractionType === 'custom') {
+      if (!extractionConfig || typeof extractionConfig !== 'object') {
+        return NextResponse.json(
+          { error: 'Extraction configuration is required for custom strategies' },
+          { status: 400 }
+        );
+      }
     }
 
     const sanitizedName = chainName.trim().toLowerCase().replace(/\s+/g, '_');
@@ -60,19 +86,32 @@ export async function POST(request: NextRequest) {
     }
 
     // Create chain structure
-    await chainRef.set({
+    const chainData: any = {
       name: chainName,
       homes: [],
+      extractionType: extractionType,
       createdAt: new Date().toISOString()
-    });
+    };
 
-    console.log(`✅ Created chain: ${chainName} (${sanitizedName})`);
+    // Add custom config if provided
+    if (extractionType === 'custom' && extractionConfig) {
+      chainData.extractionConfig = extractionConfig;
+    }
+
+    await chainRef.set(chainData);
+
+    console.log(`✅ Created chain: ${chainName} (${sanitizedName}) with extraction type: ${extractionType}`);
+    if (extractionType === 'custom') {
+      console.log(`📋 Custom config: ${JSON.stringify(extractionConfig, null, 2)}`);
+    }
 
     return NextResponse.json({
       success: true,
       message: 'Chain created successfully',
       chainId: sanitizedName,
-      chainName: chainName
+      chainName: chainName,
+      extractionType: extractionType,
+      hasCustomConfig: extractionType === 'custom'
     });
 
   } catch (error) {

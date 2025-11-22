@@ -4,7 +4,7 @@ import { join } from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { adminDb } from '@/lib/firebase-admin';
-import { getFirebaseIdAsync, getPythonDirNameAsync, getHomeNameAsync, validateHomeMappingAsync } from '@/lib/homeMappings';
+import { getFirebaseIdAsync, getChainPythonDirAsync, getHomeNameAsync, validateHomeMappingAsync } from '@/lib/homeMappings';
 
 const execAsync = promisify(exec);
 
@@ -133,12 +133,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const pythonDirName = await getPythonDirNameAsync(home);
+    // Get chain-based Python directory instead of individual home directory
+    const chainPythonDir = await getChainPythonDirAsync(home);
     const homeNameForPython = await getHomeNameAsync(home);
-    const homeDir = join(process.cwd(), 'python', pythonDirName);
-    const downloadsDir = join(homeDir, 'downloads');
+    const chainDir = join(process.cwd(), 'python', chainPythonDir);
+    const downloadsDir = join(chainDir, 'downloads');
     
-    console.log(`🏠 [API] Home mapping - UI: ${home}, Python Dir: ${pythonDirName}, Home Name: ${homeNameForPython}`);
+    console.log(`🏠 [API] Home mapping - UI: ${home}, Chain Python Dir: ${chainPythonDir}, Home Name: ${homeNameForPython}`);
 
     console.log(`🏠 [API] Creating directories for home: ${home}`);
     await mkdir(downloadsDir, { recursive: true });
@@ -192,11 +193,11 @@ export async function POST(request: NextRequest) {
         console.log('⚠️ [PYTHON] Could not list Excel files:', err);
       }
 
-      console.log(`🔧 [PYTHON] Executing: cd "${homeDir}" && HOME_NAME="${homeNameForPython}" python3 getExcelInfo.py`);
-      console.log(`📁 [PYTHON] Working directory: ${homeDir}`);
-      console.log(`🏠 [PYTHON] Home name: ${homeNameForPython}`);
+      console.log(`🔧 [PYTHON] Executing: cd "${chainDir}" && HOME_ID="${homeNameForPython}" python3 getExcelInfo.py ${homeNameForPython}`);
+      console.log(`📁 [PYTHON] Working directory: ${chainDir}`);
+      console.log(`🏠 [PYTHON] Home ID: ${homeNameForPython}`);
       
-      const excelResult = await execAsync(`cd "${homeDir}" && HOME_NAME="${homeNameForPython}" python3 getExcelInfo.py`);
+      const excelResult = await execAsync(`cd "${chainDir}" && HOME_ID="${homeNameForPython}" python3 getExcelInfo.py ${homeNameForPython}`);
       const excelDuration = ((Date.now() - excelStartTime) / 1000).toFixed(2);
       console.log(`✅ [PYTHON] Excel processing completed in ${excelDuration}s`);
       console.log('📊 [PYTHON] Excel output:', excelResult.stdout);
@@ -241,13 +242,13 @@ export async function POST(request: NextRequest) {
         console.log('⚠️ [PYTHON] Could not list PDF files:', err);
       }
 
-      console.log(`🔧 [PYTHON] Executing: cd "${homeDir}" && HOME_NAME="${homeNameForPython}" python3 getPdfInfo.py`);
-      console.log(`📁 [PYTHON] Working directory: ${homeDir}`);
-      console.log(`🏠 [PYTHON] Home name: ${homeNameForPython}`);
+      console.log(`🔧 [PYTHON] Executing: cd "${chainDir}" && HOME_ID="${homeNameForPython}" python3 getPdfInfo.py ${homeNameForPython}`);
+      console.log(`📁 [PYTHON] Working directory: ${chainDir}`);
+      console.log(`🏠 [PYTHON] Home ID: ${homeNameForPython}`);
       console.log(`⏳ [PYTHON] Starting PDF processing at ${new Date().toISOString()}...`);
       console.log(`💡 [PYTHON] This step involves text extraction and AI processing, which can take several minutes...`);
       
-      const pdfResult = await execAsync(`cd "${homeDir}" && HOME_NAME="${homeNameForPython}" python3 getPdfInfo.py`);
+      const pdfResult = await execAsync(`cd "${chainDir}" && HOME_ID="${homeNameForPython}" python3 getPdfInfo.py ${homeNameForPython}`);
       const pdfDuration = ((Date.now() - pdfStartTime) / 1000).toFixed(2);
       const pdfDurationMinutes = (parseFloat(pdfDuration) / 60).toFixed(2);
       console.log(`✅ [PYTHON] PDF processing completed in ${pdfDuration}s (${pdfDurationMinutes} minutes)`);
@@ -281,8 +282,8 @@ export async function POST(request: NextRequest) {
     console.log('🐍 [PYTHON] Step 3: Generating behaviour data...');
     const behaviourStartTime = Date.now();
     try {
-      console.log(`🔧 [PYTHON] Executing: cd "${homeDir}" && HOME_NAME="${homeNameForPython}" python3 getBe.py`);
-      const behaviourResult = await execAsync(`cd "${homeDir}" && HOME_NAME="${homeNameForPython}" python3 getBe.py`);
+      console.log(`🔧 [PYTHON] Executing: cd "${chainDir}" && HOME_ID="${homeNameForPython}" python3 getBe.py ${homeNameForPython}`);
+      const behaviourResult = await execAsync(`cd "${chainDir}" && HOME_ID="${homeNameForPython}" python3 getBe.py ${homeNameForPython}`);
       const behaviourDuration = ((Date.now() - behaviourStartTime) / 1000).toFixed(2);
       console.log(`✅ [PYTHON] Behaviour data generation completed in ${behaviourDuration}s`);
       console.log('📊 [PYTHON] Behaviour output:', behaviourResult.stdout);
@@ -303,8 +304,8 @@ export async function POST(request: NextRequest) {
     console.log('🐍 [PYTHON] Step 4: Updating dashboard...');
     const updateStartTime = Date.now();
     try {
-      console.log(`🔧 [PYTHON] Executing: cd "${homeDir}" && python3 update.py`);
-      const dashboardResult = await execAsync(`cd "${homeDir}" && python3 update.py`);
+      console.log(`🔧 [PYTHON] Executing: cd "${chainDir}" && HOME_ID="${homeNameForPython}" python3 update.py ${homeNameForPython}`);
+      const dashboardResult = await execAsync(`cd "${chainDir}" && HOME_ID="${homeNameForPython}" python3 update.py ${homeNameForPython}`);
       const updateDuration = ((Date.now() - updateStartTime) / 1000).toFixed(2);
       console.log(`✅ [PYTHON] Dashboard updated successfully in ${updateDuration}s`);
       console.log('📊 [PYTHON] Dashboard output:', dashboardResult.stdout);
@@ -325,8 +326,8 @@ export async function POST(request: NextRequest) {
     console.log('🐍 [PYTHON] Step 5: Uploading to dashboard...');
     const uploadStartTime = Date.now();
     try {
-      console.log(`🔧 [PYTHON] Executing: cd "${homeDir}" && python3 upload_to_dashboard.py`);
-      const uploadResult = await execAsync(`cd "${homeDir}" && python3 upload_to_dashboard.py`);
+      console.log(`🔧 [PYTHON] Executing: cd "${chainDir}" && HOME_ID="${homeNameForPython}" python3 upload_to_dashboard.py ${homeNameForPython}`);
+      const uploadResult = await execAsync(`cd "${chainDir}" && HOME_ID="${homeNameForPython}" python3 upload_to_dashboard.py ${homeNameForPython}`);
       const uploadDuration = ((Date.now() - uploadStartTime) / 1000).toFixed(2);
       console.log(`✅ [PYTHON] Dashboard uploaded successfully in ${uploadDuration}s`);
       console.log('📊 [PYTHON] Dashboard output:', uploadResult.stdout);

@@ -254,3 +254,54 @@ export function validateHomeMapping(home: string): { valid: boolean; missing?: s
   };
 }
 
+/**
+ * Get chain ID for a home (async - checks Firebase)
+ */
+export async function getChainIdAsync(home: string): Promise<string | null> {
+  try {
+    if (typeof window === 'undefined') {
+      const { adminDb } = await import('@/lib/firebase-admin');
+      const homeName = await getHomeNameAsync(home);
+      const homeRef = adminDb.ref(`/${homeName}`);
+      const snapshot = await homeRef.once('value');
+      
+      if (snapshot.exists()) {
+        const homeData = snapshot.val();
+        return homeData.chainId || null;
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to get chain ID from Firebase:', error);
+  }
+  return null;
+}
+
+/**
+ * Get chain Python directory path (e.g., "chains/responsive" or "chains/kindera")
+ */
+export async function getChainPythonDirAsync(home: string): Promise<string> {
+  const chainId = await getChainIdAsync(home);
+  if (chainId) {
+    return `chains/${chainId}`;
+  }
+  // Fallback: try to determine from home name (for backwards compatibility during migration)
+  const homeName = await getHomeNameAsync(home);
+  
+  // Map known homes to their chains
+  const homeToChainMap: Record<string, string> = {
+    'mill_creek_care': 'responsive',
+    'the_oneill': 'responsive',
+    'franklingardens': 'responsive',
+    'berkshire_care': 'kindera',
+    'banwell_gardens': 'kindera',
+    'test': 'test',
+  };
+  
+  const mappedChain = homeToChainMap[homeName];
+  if (mappedChain) {
+    return `chains/${mappedChain}`;
+  }
+  
+  throw new Error(`No chain found for home: ${home}. All homes must be assigned to a chain.`);
+}
+

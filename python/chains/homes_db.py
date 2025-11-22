@@ -21,6 +21,14 @@ CHAINS = {
             'the_oneill': True,
             'franklingardens': True
         }
+    },
+    'test': {
+        'name': 'Test',
+        'homes': ['test'],
+        'extraction_type': 'test',  # Uses test extraction logic
+        'supports_follow_up': {
+            'test': False
+        }
     }
 }
 

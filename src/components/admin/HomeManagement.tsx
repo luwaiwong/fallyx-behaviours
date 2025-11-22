@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import HelpIcon from './HelpIcon';
+import CustomStrategyForm from './CustomStrategyForm';
+import { ExtractionStrategyConfig, StrategyTemplate } from '@/types/extractionStrategy';
 
 interface Home {
   id: string;
@@ -15,18 +17,23 @@ interface Chain {
   homes: string[];
 }
 
-export default function HomeManagement() {
+export default function TenantManagement() {
   const [homes, setHomes] = useState<Home[]>([]);
   const [chains, setChains] = useState<Chain[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showCreateChainForm, setShowCreateChainForm] = useState(false);
   const [newHomeName, setNewHomeName] = useState('');
   const [selectedChainId, setSelectedChainId] = useState('');
-  const [pythonDir, setPythonDir] = useState('');
   const [creating, setCreating] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [migrating, setMigrating] = useState(false);
+  const [newChainName, setNewChainName] = useState('');
+  const [newChainExtractionType, setNewChainExtractionType] = useState<StrategyTemplate>('responsive');
+  const [creatingChain, setCreatingChain] = useState(false);
+  const [showCustomStrategyForm, setShowCustomStrategyForm] = useState(false);
+  const [customStrategyConfig, setCustomStrategyConfig] = useState<ExtractionStrategyConfig | null>(null);
 
   useEffect(() => {
     fetchHomes();
@@ -118,6 +125,64 @@ export default function HomeManagement() {
     }
   };
 
+  const handleCreateChain = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+
+    if (!newChainName.trim()) {
+      setError('Please enter a chain name');
+      return;
+    }
+
+    // If custom strategy, require config
+    if (newChainExtractionType === 'custom' && !customStrategyConfig) {
+      setError('Please configure the custom strategy first');
+      return;
+    }
+
+    try {
+      setCreatingChain(true);
+      setError('');
+      setSuccessMessage('');
+
+      const response = await fetch('/api/admin/chains', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          chainName: newChainName,
+          extractionType: newChainExtractionType,
+          extractionConfig: customStrategyConfig || undefined
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setSuccessMessage(`Chain "${data.chainName}" created successfully with ${data.extractionType} extraction strategy!`);
+        setNewChainName('');
+        setNewChainExtractionType('responsive');
+        setCustomStrategyConfig(null);
+        setShowCreateChainForm(false);
+        setShowCustomStrategyForm(false);
+        fetchChains();
+      } else {
+        setError(data.error || 'Failed to create chain');
+      }
+    } catch (err) {
+      console.error('Error creating chain:', err);
+      setError('Failed to create chain');
+    } finally {
+      setCreatingChain(false);
+    }
+  };
+
+  const handleSaveCustomStrategy = (config: ExtractionStrategyConfig) => {
+    setCustomStrategyConfig(config);
+    setShowCustomStrategyForm(false);
+    // Don't auto-submit - let user review and click "Create Chain"
+  };
+
   const handleCreateHome = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -143,18 +208,16 @@ export default function HomeManagement() {
         },
         body: JSON.stringify({ 
           homeName: newHomeName, 
-          chainId: selectedChainId,
-          pythonDir: pythonDir.trim() || undefined // Only send if provided
+          chainId: selectedChainId
         }),
       });
 
       const data = await response.json();
 
       if (response.ok && data.success) {
-        setSuccessMessage(`Home "${data.displayName}" created successfully! Python directory: ${data.mapping?.pythonDir || 'auto-generated'}`);
+        setSuccessMessage(`Home "${data.displayName}" created successfully! It will use the chain's Python processing logic.`);
         setNewHomeName('');
         setSelectedChainId('');
-        setPythonDir('');
         setShowCreateForm(false);
         fetchHomes();
         fetchChains();
@@ -181,18 +244,20 @@ export default function HomeManagement() {
     <div className="space-y-6">
       <div>
         <div className="flex items-center">
-          <h3 className="text-xl font-semibold text-gray-900">Home Management</h3>
+          <h3 className="text-xl font-semibold text-gray-900">Tenant Management</h3>
           <HelpIcon 
-            title="Home Management"
-            content="Manage behaviour-enabled homes in the system. Homes are care facilities that track behavioural data for residents.
+            title="Tenant Management"
+            content="Manage chains and homes (tenants) in the system.
+
+• Chains: Groups of related care facilities that share the same Python processing logic. Each chain uses a specific extraction strategy (Kindera, Responsive, or Test).
+
+• Homes: Individual care facilities that track behavioural data. Each home must belong to a chain.
 
 • Seed Existing Homes: Automatically creates/updates existing homes (like Berkshire Care, Mill Creek Care) and their chain associations (Kindera, Responsive). Use this when setting up the system for the first time.
 
-• Create Home: Manually create a new home with its associated chain. The home name will be used to create Firebase structure and Python processing directories.
+• Create Chain: Create a new chain with an extraction strategy. All homes in a chain share the same Python processing scripts.
 
-• Refresh: Reload the list of homes from the database.
-
-Each home must belong to a chain, which groups related care facilities together."
+• Create Home: Create a new home and assign it to an existing chain. The home will automatically use the chain's Python processing logic."
           />
         </div>
         <p className="mt-2 text-sm text-gray-600">
@@ -204,43 +269,49 @@ Each home must belong to a chain, which groups related care facilities together.
             disabled={migrating}
             className="text-white px-6 py-1 rounded-md text-sm font-medium transition-all hover:shadow-lg disabled:opacity-50 text-left min-w-[160px]"
             style={{ 
-              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              background: 'linear-gradient(135deg, #22d3ee 0%, #06b6d4 100%)',
+              boxShadow: '0 4px 12px rgba(6, 182, 212, 0.3)'
             }}
             onMouseEnter={(e) => {
               if (!migrating) {
-                e.currentTarget.style.background = 'linear-gradient(135deg, #059669 0%, #047857 100%)';
+                e.currentTarget.style.background = 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)';
                 e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(6, 182, 212, 0.4)';
               }
             }}
             onMouseLeave={(e) => {
               if (!migrating) {
-                e.currentTarget.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+                e.currentTarget.style.background = 'linear-gradient(135deg, #22d3ee 0%, #06b6d4 100%)';
                 e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(6, 182, 212, 0.3)';
               }
             }}
           >
             {migrating ? 'Migrating...' : 'Seed Existing Homes'}
           </button>
           <button
-            onClick={() => setShowCreateForm(!showCreateForm)}
+            onClick={() => setShowCreateChainForm(!showCreateChainForm)}
             className="text-white px-6 py-1 rounded-md text-sm font-medium transition-all hover:shadow-lg text-left min-w-[120px]"
             style={{ 
-              background: 'linear-gradient(135deg, #06b6d4 0%, #0cc7ed 100%)',
+              background: 'linear-gradient(135deg, #22d3ee 0%, #06b6d4 100%)',
+              boxShadow: '0 4px 12px rgba(6, 182, 212, 0.3)'
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'linear-gradient(135deg, #0891b2 0%, #06b6d4 100%)';
+              e.currentTarget.style.background = 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)';
               e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 6px 20px rgba(6, 182, 212, 0.4)';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'linear-gradient(135deg, #06b6d4 0%, #0cc7ed 100%)';
+              e.currentTarget.style.background = 'linear-gradient(135deg, #22d3ee 0%, #06b6d4 100%)';
               e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(6, 182, 212, 0.3)';
             }}
           >
-            {showCreateForm ? 'Cancel' : 'Create Home'}
+            {showCreateChainForm ? 'Cancel' : 'Create Chain'}
           </button>
           <button
-            onClick={fetchHomes}
-            className="text-white px-6 py-1 rounded-md text-sm font-medium transition-all hover:shadow-lg text-left min-w-[100px]"
+            onClick={() => setShowCreateForm(!showCreateForm)}
+            className="text-white px-6 py-1 rounded-md text-sm font-medium transition-all hover:shadow-lg text-left min-w-[120px]"
             style={{ 
               background: 'linear-gradient(135deg, #06b6d4 0%, #0cc7ed 100%)',
               boxShadow: '0 4px 12px rgba(6, 182, 212, 0.3)'
@@ -252,6 +323,26 @@ Each home must belong to a chain, which groups related care facilities together.
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.background = 'linear-gradient(135deg, #06b6d4 0%, #0cc7ed 100%)';
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(6, 182, 212, 0.3)';
+            }}
+          >
+            {showCreateForm ? 'Cancel' : 'Create Home'}
+          </button>
+          <button
+            onClick={fetchHomes}
+            className="text-white px-6 py-1 rounded-md text-sm font-medium transition-all hover:shadow-lg text-left min-w-[100px]"
+            style={{ 
+              background: 'linear-gradient(135deg, #0891b2 0%, #0e7490 100%)',
+              boxShadow: '0 4px 12px rgba(6, 182, 212, 0.3)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'linear-gradient(135deg, #0e7490 0%, #155e75 100%)';
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 6px 20px rgba(6, 182, 212, 0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'linear-gradient(135deg, #0891b2 0%, #0e7490 100%)';
               e.currentTarget.style.transform = 'translateY(0)';
               e.currentTarget.style.boxShadow = '0 4px 12px rgba(6, 182, 212, 0.3)';
             }}
@@ -273,6 +364,156 @@ Each home must belong to a chain, which groups related care facilities together.
         </div>
       )}
 
+      {showCreateChainForm && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center mb-4">
+            <h4 className="text-lg font-semibold text-gray-900">Create New Chain</h4>
+            <HelpIcon 
+              title="Create New Chain"
+              content="Create a new chain with an extraction strategy. Chains group related care facilities that share the same Python processing logic.
+
+• Chain Name: The display name of the chain (e.g., 'Kindera', 'Responsive')
+
+• Extraction Strategy: Choose the Python processing strategy:
+  - kindera: Uses Berkshire-style extraction (for Kindera chain homes)
+  - responsive: Uses Millcreek/Oneill-style extraction (for Responsive chain homes)
+  - test: Uses test extraction logic (for testing/development)
+
+All homes added to this chain will automatically use the selected extraction strategy."
+            />
+          </div>
+          <form onSubmit={handleCreateChain} className="space-y-4">
+            <div>
+              <div className="flex items-center">
+                <label htmlFor="chainName" className="block text-sm font-medium text-gray-700 mb-2">
+                  Chain Name
+                </label>
+                <HelpIcon 
+                  title="Chain Name"
+                  content="Enter the display name of the chain. This name will appear in the dashboard. Example: 'Kindera', 'Responsive', 'Test'"
+                />
+              </div>
+              <input
+                type="text"
+                id="chainName"
+                value={newChainName}
+                onChange={(e) => setNewChainName(e.target.value)}
+                placeholder="e.g., Kindera, Responsive"
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                disabled={creatingChain}
+                required
+              />
+            </div>
+            <div>
+              <div className="flex items-center">
+                <label htmlFor="extractionType" className="block text-sm font-medium text-gray-700 mb-2">
+                  Extraction Strategy
+                </label>
+                <HelpIcon 
+                  title="Extraction Strategy"
+                  content="Select the Python processing strategy for this chain. All homes in this chain will use the same extraction logic:
+
+• kindera: Berkshire-style extraction (used by Kindera chain)
+• responsive: Millcreek/Oneill-style extraction (used by Responsive chain)
+• test: Test extraction logic (for development/testing)"
+                />
+              </div>
+              <select
+                id="extractionType"
+                value={newChainExtractionType}
+                onChange={(e) => {
+                  const newType = e.target.value as StrategyTemplate;
+                  setNewChainExtractionType(newType);
+                  if (newType === 'custom') {
+                    setShowCustomStrategyForm(true);
+                  } else {
+                    setShowCustomStrategyForm(false);
+                    setCustomStrategyConfig(null);
+                  }
+                }}
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                disabled={creatingChain}
+                required
+              >
+                <option value="responsive">Responsive (Millcreek/Oneill style)</option>
+                <option value="kindera">Kindera (Berkshire style)</option>
+                <option value="test">Test (Development/Testing)</option>
+                <option value="custom">Custom Strategy (Configure parameters)</option>
+              </select>
+              <p className="mt-1 text-xs text-gray-500">
+                {newChainExtractionType === 'custom' 
+                  ? 'Click "Configure Custom Strategy" to set up custom parameters'
+                  : 'All homes in this chain will use this extraction strategy for processing files.'}
+              </p>
+              {newChainExtractionType === 'custom' && !showCustomStrategyForm && (
+                <button
+                  type="button"
+                  onClick={() => setShowCustomStrategyForm(true)}
+                  className="mt-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-md text-sm font-medium transition-colors"
+                >
+                  Configure Custom Strategy
+                </button>
+              )}
+            </div>
+            {customStrategyConfig && newChainExtractionType === 'custom' && (
+              <div className="bg-green-50 border border-green-200 rounded-md p-3">
+                <p className="text-sm text-green-800">
+                  ✓ Custom strategy configured ({customStrategyConfig.noteTypes.validTypes.length} note types, 
+                  {customStrategyConfig.followUpNotes.enabled ? ' follow-up enabled' : ' no follow-up'})
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCustomStrategyForm(true);
+                    setCustomStrategyConfig(null);
+                  }}
+                  className="mt-2 text-xs text-green-600 hover:text-green-800 underline"
+                >
+                  Edit Configuration
+                </button>
+              </div>
+            )}
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCreateChainForm(false);
+                  setShowCustomStrategyForm(false);
+                  setNewChainName('');
+                  setNewChainExtractionType('responsive');
+                  setCustomStrategyConfig(null);
+                  setError('');
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                disabled={creatingChain}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={creatingChain || !newChainName.trim() || (newChainExtractionType === 'custom' && !customStrategyConfig)}
+              >
+                {creatingChain ? 'Creating...' : 'Create Chain'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {showCustomStrategyForm && (
+        <CustomStrategyForm
+          onSave={handleSaveCustomStrategy}
+          onCancel={() => {
+            setShowCustomStrategyForm(false);
+            if (!customStrategyConfig) {
+              setNewChainExtractionType('responsive');
+            }
+          }}
+          initialTemplate={newChainExtractionType === 'custom' ? 'custom' : newChainExtractionType}
+        />
+      )}
+
       {showCreateForm && (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center mb-4">
@@ -282,10 +523,10 @@ Each home must belong to a chain, which groups related care facilities together.
               content="Create a new behaviour-enabled home in the system. This will:
 
 • Create a Firebase database structure for the home
-• Generate a Python processing directory (or use custom name)
 • Associate the home with a chain
+• Automatically use the chain's Python processing logic
 
-The home name should match the actual care facility name (e.g., 'Mill Creek Care'). The Python directory name is auto-generated from the home name but can be customized."
+The home name should match the actual care facility name (e.g., 'Mill Creek Care'). The home will automatically use the processing scripts from its assigned chain's directory (e.g., python/chains/responsive/)."
             />
           </div>
           <form onSubmit={handleCreateHome} className="space-y-4">
@@ -309,34 +550,7 @@ The home name should match the actual care facility name (e.g., 'Mill Creek Care
                 disabled={creating}
               />
               <p className="mt-1 text-xs text-gray-500">
-                This will create a Firebase structure and Python processing directory
-              </p>
-            </div>
-            <div>
-              <div className="flex items-center">
-                <label htmlFor="pythonDir" className="block text-sm font-medium text-gray-700 mb-2">
-                  Python Directory Name <span className="text-gray-400 font-normal">(Optional)</span>
-                </label>
-                <HelpIcon 
-                  title="Python Directory Name"
-                  content="The directory name in the python/ folder where processing scripts will be stored. If left blank, it will be auto-generated from the home name by converting to lowercase and removing spaces/underscores.
-
-Example: 'Mill Creek Care' → 'millcreek' (auto) or specify custom like 'millcreekcare'"
-                />
-              </div>
-              <input
-                type="text"
-                id="pythonDir"
-                value={pythonDir}
-                onChange={(e) => setPythonDir(e.target.value)}
-                placeholder="e.g., millcreek (auto-generated if left blank)"
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                disabled={creating}
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                Directory name in the python/ folder. If left blank, will auto-generate from home name (lowercase, no spaces/underscores).
-                <br />
-                <span className="font-medium">Example:</span> "Mill Creek Care" → "millcreek" (auto) or specify custom like "millcreekcare"
+                This will create a Firebase structure for the home. The home will use the chain's Python processing logic.
               </p>
             </div>
             <div>
@@ -365,7 +579,7 @@ Example: 'Mill Creek Care' → 'millcreek' (auto) or specify custom like 'millcr
                 ))}
               </select>
               <p className="mt-1 text-xs text-gray-500">
-                Select the chain this home belongs to
+                Select the chain this home belongs to. The home will automatically use the chain's Python processing scripts.
               </p>
             </div>
             <div className="flex justify-end gap-3">
@@ -375,7 +589,6 @@ Example: 'Mill Creek Care' → 'millcreek' (auto) or specify custom like 'millcr
                   setShowCreateForm(false);
                   setNewHomeName('');
                   setSelectedChainId('');
-                  setPythonDir('');
                   setError('');
                 }}
                 className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"

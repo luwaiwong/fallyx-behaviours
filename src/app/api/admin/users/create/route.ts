@@ -4,7 +4,7 @@ import { adminDb } from '@/lib/firebase-admin';
 
 export async function POST(request: NextRequest) {
   try {
-    const { username, password, role, homeId, chainId, createNewHome, createNewChain, newHomeName, newChainName } = await request.json();
+    const { username, password, role, homeId, chainId, createNewHome, newHomeName } = await request.json();
 
     if (!username || !password || !role) {
       return NextResponse.json(
@@ -23,40 +23,25 @@ export async function POST(request: NextRequest) {
 
     // For homeUser, require home and chain
     if (role === 'homeUser') {
-      if (createNewChain) {
-        if (!newChainName || typeof newChainName !== 'string') {
-          return NextResponse.json(
-            { error: 'Chain name is required when creating a new chain' },
-            { status: 400 }
-          );
-        }
+      if (!chainId || typeof chainId !== 'string') {
+        return NextResponse.json(
+          { error: 'Chain ID is required for homeUser' },
+          { status: 400 }
+        );
+      }
+      if (createNewHome) {
         if (!newHomeName || typeof newHomeName !== 'string') {
           return NextResponse.json(
-            { error: 'Home name is required when creating a new chain' },
+            { error: 'Home name is required when creating a new home' },
             { status: 400 }
           );
         }
       } else {
-        if (!chainId || typeof chainId !== 'string') {
+        if (!homeId || typeof homeId !== 'string') {
           return NextResponse.json(
-            { error: 'Chain ID is required for homeUser' },
+            { error: 'Home ID is required for homeUser' },
             { status: 400 }
           );
-        }
-        if (createNewHome) {
-          if (!newHomeName || typeof newHomeName !== 'string') {
-            return NextResponse.json(
-              { error: 'Home name is required when creating a new home' },
-              { status: 400 }
-            );
-          }
-        } else {
-          if (!homeId || typeof homeId !== 'string') {
-            return NextResponse.json(
-              { error: 'Home ID is required for homeUser' },
-              { status: 400 }
-            );
-          }
         }
       }
     }
@@ -68,33 +53,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let finalChainId = chainId;
+    const finalChainId = chainId;
     let finalHomeId = homeId;
 
-    // Handle chain creation
-    if (createNewChain && newChainName) {
-      const sanitizedChainName = newChainName.trim().toLowerCase().replace(/\s+/g, '_');
-      const chainRef = adminDb.ref(`/chains/${sanitizedChainName}`);
-      const chainSnapshot = await chainRef.once('value');
-      
-      if (chainSnapshot.exists()) {
-        return NextResponse.json(
-          { error: 'Chain already exists' },
-          { status: 409 }
-        );
-      }
-
-      await chainRef.set({
-        name: newChainName,
-        homes: [],
-        createdAt: new Date().toISOString()
-      });
-
-      finalChainId = sanitizedChainName;
-    }
-
     // Handle home creation
-    if ((createNewHome || createNewChain) && newHomeName) {
+    if (createNewHome && newHomeName) {
       const sanitizedHomeName = newHomeName.trim().toLowerCase().replace(/\s+/g, '_');
       const homeRef = adminDb.ref(`/${sanitizedHomeName}`);
       const homeSnapshot = await homeRef.once('value');

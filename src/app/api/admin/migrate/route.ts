@@ -19,6 +19,11 @@ export async function POST(request: NextRequest) {
         id: 'responsive',
         name: 'Responsive',
         homes: ['mill_creek_care', 'the_oneill', 'franklingardens']
+      },
+      {
+        id: 'test',
+        name: 'Test',
+        homes: ['test']
       }
     ];
 
@@ -28,7 +33,8 @@ export async function POST(request: NextRequest) {
       { id: 'banwell_gardens', name: 'Banwell Gardens', chainId: 'kindera' },
       { id: 'mill_creek_care', name: 'Mill Creek Care', chainId: 'responsive' },
       { id: 'the_oneill', name: 'The O\'Neill', chainId: 'responsive' },
-      { id: 'franklingardens', name: 'Franklin Gardens', chainId: 'responsive' }
+      { id: 'franklingardens', name: 'Franklin Gardens', chainId: 'responsive' },
+      { id: 'test', name: 'Test', chainId: 'test' }
     ];
 
     const results = {

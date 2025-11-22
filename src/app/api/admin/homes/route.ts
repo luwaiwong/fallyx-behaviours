@@ -65,7 +65,7 @@ function generatePythonDir(homeName: string, pythonDirOverride?: string): string
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { homeName, chainId, pythonDir } = body;
+    const { homeName, chainId } = body;
 
     if (!homeName || typeof homeName !== 'string') {
       return NextResponse.json(
@@ -84,7 +84,6 @@ export async function POST(request: NextRequest) {
     const sanitizedName = homeName.trim().toLowerCase().replace(/\s+/g, '_');
     const displayName = homeName.trim();
     const firebaseId = toCamelCase(displayName);
-    const pythonDirName = generatePythonDir(sanitizedName, pythonDir);
 
     // Check if home already exists
     const homeRef = adminDb.ref(`/${sanitizedName}`);
@@ -115,10 +114,9 @@ export async function POST(request: NextRequest) {
       },
       chainId: chainId,
       createdAt: new Date().toISOString(),
-      // Store mapping information
+      // Store mapping information (pythonDir no longer needed - uses chain directory)
       mapping: {
         firebaseId: firebaseId,
-        pythonDir: pythonDirName,
         homeName: sanitizedName,
         displayName: displayName
       }
@@ -134,13 +132,11 @@ export async function POST(request: NextRequest) {
       ...existingMappings,
       [sanitizedName]: {
         firebaseId: firebaseId,
-        pythonDir: pythonDirName,
         homeName: sanitizedName,
         displayName: displayName
       },
       [firebaseId]: {
         firebaseId: firebaseId,
-        pythonDir: pythonDirName,
         homeName: sanitizedName,
         displayName: displayName
       }
@@ -157,7 +153,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`✅ Created home: ${displayName} (${sanitizedName}) in chain ${chainId}`);
-    console.log(`📋 Mapping: firebaseId=${firebaseId}, pythonDir=${pythonDirName}`);
+    console.log(`📋 Mapping: firebaseId=${firebaseId}, will use chain's Python directory: chains/${chainId}`);
 
     return NextResponse.json({
       success: true,
@@ -167,7 +163,6 @@ export async function POST(request: NextRequest) {
       chainId: chainId,
       mapping: {
         firebaseId: firebaseId,
-        pythonDir: pythonDirName,
         homeName: sanitizedName,
         displayName: displayName
       }

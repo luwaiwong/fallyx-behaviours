@@ -138,7 +138,7 @@ export default function AdminPage() {
                 }
               }}
             >
-              Home Management
+              Tenant Management
             </button>
             <button
               onClick={() => setActiveTab('users')}
